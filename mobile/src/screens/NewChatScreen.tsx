@@ -1,85 +1,202 @@
-// New Chat Screen - Start a new conversation
+// New Chat Screen - Discover nearby Bluetooth devices
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Alert,
+  FlatList,
+  ActivityIndicator,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
-import { createMailbox } from '../services/api';
+import { bluetoothMesh } from '../services/bluetoothMesh';
+import { localStorage } from '../services/localStorage';
+import { BluetoothDevice } from '../types';
 
 interface NewChatScreenProps {
   navigation: any;
 }
 
 export default function NewChatScreen({ navigation }: NewChatScreenProps) {
-  const [recipientId, setRecipientId] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [devices, setDevices] = useState<BluetoothDevice[]>([]);
+  const [scanning, setScanning] = useState(false);
+  const [connecting, setConnecting] = useState<string | null>(null);
 
-  const startChat = async () => {
-    if (!recipientId.trim()) {
-      Alert.alert('Error', 'Please enter a recipient ID');
-      return;
-    }
+  useEffect(() => {
+    requestPermissions();
+  }, []);
 
-    setLoading(true);
-    try {
-      // Create a mailbox for this chat
-      const mailbox = await createMailbox(`chat_${Date.now()}`);
-      
-      Alert.alert('Success', 'Chat created! Mailbox ID: ' + mailbox.id);
-      navigation.goBack();
-    } catch (error) {
-      console.error('Error creating chat:', error);
-      Alert.alert('Error', 'Failed to create chat. Make sure backend is running.');
-    } finally {
-      setLoading(false);
+  const requestPermissions = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        ]);
+
+        const allGranted = Object.values(granted).every(
+          status => status === PermissionsAndroid.RESULTS.GRANTED
+        );
+
+        if (!allGranted) {
+          Alert.alert(
+            'Permissions Required',
+            'BitChat needs Bluetooth and Location permissions to discover nearby devices.'
+          );
+        }
+      } catch (err) {
+        console.warn('Permission error:', err);
+      }
     }
   };
+
+  const startScanning = async () => {
+    setScanning(true);
+    setDevices([]);
+
+    try {
+      await bluetoothMesh.initialize();
+      
+      const discoveredDevices = await bluetoothMesh.startDiscovery((device) => {
+        // Convert BLE Device to our BluetoothDevice type
+        const bleDevice: BluetoothDevice = {
+          id: device.id,
+          name: device.name || 'Unknown Device',
+          rssi: device.rssi || undefined,
+          isConnected: false,
+        };
+        
+        setDevices(prev => {
+          // Avoid duplicates
+          const exists = prev.find(d => d.id === bleDevice.id);
+          if (exists) {
+            return prev.map(d => d.id === bleDevice.id ? bleDevice : d);
+          }
+          return [...prev, bleDevice];
+        });
+      });
+
+      if (discoveredDevices && discoveredDevices.length === 0) {
+        Alert.alert('No Devices Found', 'Make sure other BitChat devices are nearby and have the app open.');
+      }
+    } catch (error) {
+      console.error('Scan error:', error);
+      Alert.alert('Scan Failed', 'Failed to scan for devices. Please try again.');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const connectToDevice = async (device: BluetoothDevice) => {
+    setConnecting(device.id);
+    
+    try {
+      await bluetoothMesh.connectToDevice(device.id);
+      
+      // Save as contact
+      await localStorage.saveContact(device.id, device.name);
+      
+      // Create chat
+      const chatId = `chat_${device.id}_${Date.now()}`;
+      await localStorage.saveChat({
+        id: chatId,
+        name: device.name,
+        lastMessage: 'Connected via Bluetooth',
+        timestamp: new Date().toISOString(),
+        unread: 0,
+        deviceId: device.id,
+        isConnected: true,
+      });
+
+      Alert.alert('Connected!', `You can now chat with ${device.name}`);
+      navigation.goBack();
+    } catch (error) {
+      console.error('Connection error:', error);
+      Alert.alert('Connection Failed', 'Could not connect to device. Please try again.');
+    } finally {
+      setConnecting(null);
+    }
+  };
+
+  const renderDevice = ({ item }: { item: BluetoothDevice }) => (
+    <TouchableOpacity
+      style={styles.deviceItem}
+      onPress={() => connectToDevice(item)}
+      disabled={connecting !== null}
+    >
+      <View style={styles.deviceInfo}>
+        <View style={styles.deviceIcon}>
+          <Text style={styles.deviceIconText}>📱</Text>
+        </View>
+        <View style={styles.deviceDetails}>
+          <Text style={styles.deviceName}>{item.name}</Text>
+          <Text style={styles.deviceId}>ID: {item.id.slice(0, 8)}...</Text>
+          {item.rssi && (
+            <Text style={styles.deviceRssi}>Signal: {item.rssi} dBm</Text>
+          )}
+        </View>
+      </View>
+      
+      {connecting === item.id ? (
+        <ActivityIndicator color="#3a86ff" />
+      ) : (
+        <Text style={styles.connectButton}>Connect</Text>
+      )}
+    </TouchableOpacity>
+  );
 
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Start New Chat</Text>
+        <Text style={styles.title}>Discover Devices</Text>
         <Text style={styles.subtitle}>
-          Enter a recipient ID or scan a QR code
+          Find nearby BitChat users via Bluetooth
         </Text>
 
-        <TextInput
-          style={styles.input}
-          value={recipientId}
-          onChangeText={setRecipientId}
-          placeholder="Enter recipient ID or mailbox ID"
-          placeholderTextColor="#888"
+        <TouchableOpacity
+          style={[styles.scanButton, scanning && styles.scanButtonDisabled]}
+          onPress={startScanning}
+          disabled={scanning}
+        >
+          <Text style={styles.scanButtonText}>
+            {scanning ? '🔍 Scanning...' : '🔎 Start Scanning'}
+          </Text>
+        </TouchableOpacity>
+
+        {scanning && (
+          <View style={styles.scanningIndicator}>
+            <ActivityIndicator size="large" color="#3a86ff" />
+            <Text style={styles.scanningText}>
+              Looking for nearby devices...
+            </Text>
+          </View>
+        )}
+
+        <FlatList
+          data={devices}
+          renderItem={renderDevice}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.deviceList}
+          ListEmptyComponent={
+            !scanning ? (
+              <Text style={styles.emptyText}>
+                No devices found. Start scanning to discover nearby BitChat users.
+              </Text>
+            ) : null
+          }
         />
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={startChat}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>
-            {loading ? 'Creating...' : 'Start Chat'}
-          </Text>
-        </TouchableOpacity>
-
         <View style={styles.infoBox}>
-          <Text style={styles.infoTitle}>🔒 Privacy First</Text>
+          <Text style={styles.infoTitle}>� Privacy First</Text>
           <Text style={styles.infoText}>
-            All messages are end-to-end encrypted. BitChat uses anonymous
-            mailbox IDs, no phone numbers or emails required.
+            All communication happens directly between devices via Bluetooth.
+            No servers, no tracking, complete privacy.
           </Text>
         </View>
-
-        <TouchableOpacity
-          style={styles.scanButton}
-          onPress={() => Alert.alert('Coming Soon', 'QR code scanning')}
-        >
-          <Text style={styles.scanButtonText}>📷 Scan QR Code</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -103,29 +220,89 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#888',
-    marginBottom: 32,
+    marginBottom: 24,
   },
-  input: {
-    backgroundColor: '#2d2d2d',
-    borderRadius: 12,
-    padding: 16,
-    color: '#fff',
-    fontSize: 16,
-    marginBottom: 16,
-  },
-  button: {
+  scanButton: {
     backgroundColor: '#3a86ff',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
+    marginBottom: 24,
   },
-  buttonDisabled: {
+  scanButtonDisabled: {
     opacity: 0.5,
   },
-  buttonText: {
+  scanButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  scanningIndicator: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  scanningText: {
+    color: '#888',
+    marginTop: 12,
+    fontSize: 14,
+  },
+  deviceList: {
+    paddingBottom: 20,
+  },
+  deviceItem: {
+    backgroundColor: '#2d2d2d',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  deviceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  deviceIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#3a3a3a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  deviceIconText: {
+    fontSize: 24,
+  },
+  deviceDetails: {
+    flex: 1,
+  },
+  deviceName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  deviceId: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 2,
+  },
+  deviceRssi: {
+    fontSize: 12,
+    color: '#aaa',
+  },
+  connectButton: {
+    color: '#3a86ff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#888',
+    fontSize: 14,
+    marginTop: 40,
   },
   infoBox: {
     backgroundColor: '#2d2d2d',
@@ -143,18 +320,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#aaa',
     lineHeight: 20,
-  },
-  scanButton: {
-    marginTop: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#3a86ff',
-    borderRadius: 12,
-  },
-  scanButtonText: {
-    color: '#3a86ff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

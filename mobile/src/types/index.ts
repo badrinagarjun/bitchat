@@ -1,32 +1,45 @@
-// TypeScript types and interfaces
+// Type definitions for BitChat - Pure Mesh Architecture
 
-export interface User {
+export interface ChatMessage {
   id: string;
-  username: string;
-  publicKeyHash: string;
+  chatId: string;
+  text: string;
+  timestamp: string;
+  isOwn: boolean;
+  encrypted?: boolean;
+  deviceId?: string;
 }
 
 export interface Chat {
   id: string;
   name: string;
-  lastMessage?: string;
-  lastMessageTime?: Date;
-  unreadCount: number;
+  lastMessage: string;
+  timestamp: string;
+  unread: number;
+  deviceId: string;
+  isConnected?: boolean;
 }
 
-export interface ChatMessage {
+export interface BluetoothDevice {
   id: string;
-  chatId: string;
-  content: string;
+  name: string;
+  rssi?: number;
+  isConnected: boolean;
+}
+
+export interface Contact {
+  deviceId: string;
+  name: string;
+  publicKey?: string;
+  addedAt: string;
+}
+
+export interface MeshMessage {
+  id: string;
   senderId: string;
-  timestamp: Date;
-  isOwn: boolean;
-  encrypted?: boolean;
-}
-
-export interface Mailbox {
-  id: string;
-  public_key_hash: string;
-  created_at: string;
-  expires_at: string;
+  recipientId: string;
+  content: string;
+  timestamp: string;
+  encrypted: boolean;
+  hops?: number;
 }
