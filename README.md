@@ -1,28 +1,67 @@
-# BitChat - Privacy-First Bluetooth Mesh Chat
+# BitChat - Pure Peer-to-Peer Bluetooth Mesh Chat
 
-A lightweight, anonymous messaging app using Bluetooth Mesh networking with optional backend sync.
+> **🚀 NEW: 100% Pure Mesh Architecture!**  
+> BitChat now works completely **without servers** - true P2P Bluetooth mesh networking!
+
+A privacy-first, offline-capable messaging app using **direct Bluetooth mesh** communication. No internet, no servers, no tracking.
+
+## ⚡ Pure Mesh Architecture
+
+BitChat is now a **true peer-to-peer mesh network**:
+
+```
+Device A ←→ Device B ←→ Device C
+    ↓           ↓           ↓
+  Local      Local      Local
+ Storage    Storage    Storage
+```
+
+**No backend required!** All communication happens directly between devices via Bluetooth.
 
 ## 🔒 Privacy Features
 
-- **Zero-Knowledge Backend**: Server can't read your messages
+- **Zero Servers**: No data sent to any server ever
+- **Direct P2P**: Messages go straight from device to device
 - **Anonymous Users**: No phone numbers, emails, or real identities
-- **End-to-End Encryption**: All messages encrypted client-side
-- **Offline-First**: Works 100% offline via Bluetooth mesh
-- **Auto-Expiring Messages**: Messages auto-delete after 24 hours
+- **Local Storage**: All data stored only on your device
+- **Offline-First**: Works 100% without internet
+- **No Tracking**: Zero analytics or telemetry
+
+## 🎯 Key Features
+
+### ✅ Implemented
+- **Bluetooth Device Discovery**: Find nearby BitChat users
+- **Direct P2P Messaging**: Send messages via Bluetooth
+- **Local Storage**: Messages stored locally with AsyncStorage
+- **Contact Management**: Save and manage contacts
+- **Dark Theme UI**: Beautiful, minimal interface
+- **Real-time Updates**: Instant message delivery
+
+### 🔜 Coming Soon
+- End-to-end encryption (ChaCha20-Poly1305)
+- Multi-hop message routing
+- Group chats
+- File sharing
+- QR code contact exchange
 
 ## 📁 Project Structure
 
 ```
 bitchat/
-├── backend/          # Django REST API (PostgreSQL)
-│   ├── api/          # Message storage API
-│   ├── bitchat/      # Django project settings
-│   └── manage.py
-├── gateway/          # Flask microservice
-│   ├── app.py        # Lightweight message relay
-│   └── requirements.txt
-├── mobile/           # React Native app (TODO)
-└── .env.example      # Environment variables template
+├── mobile/                      # React Native app (main)
+│   ├── src/
+│   │   ├── services/
+│   │   │   ├── bluetoothMesh.ts    # Bluetooth P2P service
+│   │   │   └── localStorage.ts      # Local data storage
+│   │   ├── screens/
+│   │   │   ├── HomeScreen.tsx       # Chat list
+│   │   │   ├── ChatScreen.tsx       # Individual chat
+│   │   │   └── NewChatScreen.tsx    # Device discovery
+│   │   └── types/                   # TypeScript types
+│   └── app.json                     # App config + permissions
+├── backend/                     # Django API (optional, not used)
+├── gateway/                     # Flask relay (optional, not used)
+└── docs/                        # Documentation
 ```
 
 ## 🚀 Quick Start
@@ -59,179 +98,194 @@ cd backend
 # or
 source venv/bin/activate  # Linux/Mac
 
-# Run migrations
-python manage.py makemigrations
-python manage.py migrate
-
-# Create superuser (optional)
-python manage.py createsuperuser
-
-# Start server
-python manage.py runserver
-```
-
-Django backend will run on `http://localhost:8000`
-
-### 4. Setup Flask Gateway
+### Mobile App (Primary)
 
 ```bash
-cd gateway
-
-# Create virtual environment
-python -m venv venv
-
-# Activate
-.\venv\Scripts\Activate.ps1  # Windows
+cd mobile
 
 # Install dependencies
-pip install -r requirements.txt
+npm install
 
-# Run gateway
-python app.py
+# Start development server
+npx expo start
+
+# Run on device (recommended for Bluetooth)
+# - Scan QR code with Expo Go app
+# - Or press 'a' for Android, 'i' for iOS
+
+# Build APK (for testing on real devices)
+eas build --platform android --profile preview
 ```
 
-Flask gateway will run on `http://localhost:5001`
+**Note**: Bluetooth doesn't work in emulators - you need **physical devices** to test!
 
-## 📡 API Endpoints
+### Backend (Optional - Not Required)
 
-### Django Backend (Port 8000)
+The Django/Flask backend is **optional** and not needed for core functionality. See `BACKEND_SETUP.md` if you want to set it up for cloud sync features.
 
-#### Send Message
-```http
-POST /api/messages/send/
-Content-Type: application/json
+## 📱 Testing on Real Devices
 
-{
-  "encrypted_content": "<base64_encrypted_data>",
-  "recipient_mailbox": "<uuid>"
-}
-```
+### Requirements
+- 2 physical Android/iOS devices
+- Bluetooth enabled on both
+- Expo Go app installed (or build APK)
 
-#### Receive Messages
-```http
-GET /api/messages/receive/<mailbox_id>/
-```
+### Steps
+1. Open BitChat on Device A
+2. Tap '+' button to scan for devices
+3. Open BitChat on Device B
+4. Device A will discover Device B
+5. Tap "Connect" on Device A
+6. Start chatting - messages go directly P2P!
 
-#### Create Mailbox
-```http
-POST /api/mailbox/create/
-Content-Type: application/json
+## 🛠️ Technical Details
 
-{
-  "public_key_hash": "<sha256_hash>"
-}
-```
+### Bluetooth Configuration
 
-### Flask Gateway (Port 5001)
+**Service UUID**: `0000fff0-0000-1000-8000-00805f9b34fb`  
+**Message Characteristic**: `0000fff1-0000-1000-8000-00805f9b34fb`
 
-#### Relay Message
-```http
-POST /relay/send
-Content-Type: application/json
+### Permissions
 
-{
-  "recipient_id": "<uuid>",
-  "encrypted_payload": "<encrypted_data>"
-}
-```
+**Android** (automatically configured):
+- BLUETOOTH_SCAN
+- BLUETOOTH_CONNECT
+- BLUETOOTH_ADVERTISE
+- ACCESS_FINE_LOCATION
 
-#### Receive Relayed Messages
-```http
-GET /relay/receive/<recipient_id>
-```
+**iOS** (automatically configured):
+- NSBluetoothAlwaysUsageDescription
+- NSBluetoothPeripheralUsageDescription
 
-## 🛠️ Tech Stack
+### Local Storage
 
-- **Backend**: Django 5.0 + Django REST Framework
-- **Database**: PostgreSQL 12+
-- **Gateway**: Flask 3.0 (lightweight relay)
-- **Encryption**: cryptography library (Fernet)
-- **Mobile**: React Native + Expo (planned)
+All data stored locally using AsyncStorage:
+- Messages: `@bitchat_messages`
+- Chats: `@bitchat_chats`
+- Contacts: `@bitchat_contacts`
+- User ID: `@bitchat_user_id`
 
-## 🔐 Privacy Architecture
+## 📚 Documentation
 
-### How It Works
+- **[PURE_MESH_IMPLEMENTATION.md](PURE_MESH_IMPLEMENTATION.md)** - Complete technical guide
+- **[PURE_MESH.md](PURE_MESH.md)** - Architecture overview
+- **[BUILD_APK.md](BUILD_APK.md)** - Building APK guide
+- **[GIT_READY.md](GIT_READY.md)** - Git workflow
 
-1. **Client-Side Encryption**: All messages encrypted before leaving device
-2. **Anonymous IDs**: Users identified by public key hashes only
-3. **No Metadata**: Server can't see who talks to whom
-4. **Rotating Mailboxes**: Mailbox IDs change periodically
-5. **Auto-Expiry**: Messages deleted after 24 hours automatically
+## 🎯 Why Pure Mesh?
 
-### Data Flow
+### Maximum Privacy
+- No servers = No one can intercept messages
+- No metadata collection
+- No accounts or tracking
+- True anonymity
 
-```
-[Device A] -> Encrypt -> [Bluetooth Mesh] -> [Device B]
-                              |
-                              v
-                    [Optional: Flask Gateway]
-                              |
-                              v
-                    [Django Backend Storage]
-                    (Only encrypted blobs)
-```
+### Offline First
+- Works without internet
+- Perfect for remote areas
+- Survives network outages
+- Censorship resistant
 
-## 📝 Development Notes
+### Zero Cost
+- No hosting fees
+- No bandwidth costs
+- No operational expenses
+- Sustainable forever
 
-### Database Models
+### True Decentralization
+- Not marketing buzzwords
+- Actual peer-to-peer networking
+- Each device is equal
+- Community owned
 
-- **AnonymousUser**: Public key hash only, no real identity
-- **EncryptedMessage**: Binary encrypted blobs with expiry
-- **Mailbox**: Rotating anonymous mailboxes
+## 🔧 Development
 
-### Security Features
+### Tech Stack
+- **React Native** + Expo SDK 52
+- **TypeScript** for type safety
+- **react-native-ble-plx** for Bluetooth
+- **AsyncStorage** for local data
+- **React Navigation** for routing
 
-- All message content encrypted client-side
-- Server stores only encrypted binary blobs
-- No user relationships or social graph
-- Messages automatically expire
-- Optional Tor/I2P integration (planned)
-
-## 🧪 Testing
-
+### Code Quality
 ```bash
-# Test Django API
-cd backend
-python manage.py test
+# Type checking
+npm run tsc
 
-# Test Flask gateway
-cd gateway
-python -m pytest  # (after adding tests)
+# Linting
+npm run lint
+
+# Format
+npm run format
 ```
 
-## 🗺️ Roadmap
+## 🐛 Troubleshooting
 
-- [x] Django backend with PostgreSQL
-- [x] Flask lightweight gateway
-- [x] Privacy-preserving database schema
-- [ ] React Native mobile app
-- [ ] Bluetooth Mesh networking layer
-- [ ] End-to-end encryption implementation
-- [ ] Message routing algorithm
-- [ ] Offline message queue
-- [ ] UI/UX design
-- [ ] Multi-device testing
+### "No devices found"
+- Ensure both devices have app open
+- Check Bluetooth is enabled
+- Verify permissions are granted
+- Device name should include "BitChat"
 
-## 📄 License
+### "Connection failed"
+- Move devices closer (<30m)
+- Restart Bluetooth
+- Clear app cache
+- Check console logs
 
-MIT License - Build freely, stay private!
+### "Permission denied"
+- Go to Settings → Apps → BitChat → Permissions
+- Enable Bluetooth and Location
+- Restart app
+
+## 📈 Roadmap
+
+### Phase 1: Core P2P ✅ DONE
+- [x] Bluetooth device discovery
+- [x] Direct P2P connection
+- [x] Message sending/receiving
+- [x] Local storage
+- [x] Contact management
+
+### Phase 2: Security (Next)
+- [ ] End-to-end encryption (ChaCha20-Poly1305)
+- [ ] Public key exchange (X25519)
+- [ ] Message signing (Ed25519)
+
+### Phase 3: Multi-Hop Routing
+- [ ] Forward messages through peers
+- [ ] Routing algorithm
+- [ ] Network visualization
+
+### Phase 4: Advanced Features
+- [ ] Group chats
+- [ ] File sharing
+- [ ] Voice messages
+- [ ] QR code contact exchange
 
 ## 🤝 Contributing
 
-This is a learning project for Django, Flask, PostgreSQL, and Bluetooth Mesh networking.
-Contributions welcome!
+Contributions welcome! This is a learning project focused on:
+- Privacy-first design
+- True P2P networking
+- Minimal dependencies
+- Clean code
 
-## ⚠️ Security Notice
+## 📄 License
 
-**This is a development version.** Do not use for production without:
-- Changing SECRET_KEY
-- Setting DEBUG = False
-- Configuring proper CORS
-- Setting up HTTPS/TLS
-- Implementing rate limiting
-- Adding proper authentication
-- Security audit
+MIT License - See LICENSE file
 
-## 📧 Contact
+## 🙏 Acknowledgments
 
-Built with privacy in mind. No tracking, no data collection.
+Built to learn Django, Flask, PostgreSQL, React Native, and Bluetooth mesh networking while creating something truly privacy-focused.
+
+## 📞 Contact
+
+- GitHub: [@badrinagarjun](https://github.com/badrinagarjun)
+- Repository: [bitchat](https://github.com/badrinagarjun/bitchat)
+
+---
+
+**🚀 Welcome to the pure mesh revolution!**
+
+No servers. No tracking. Just pure P2P communication.
