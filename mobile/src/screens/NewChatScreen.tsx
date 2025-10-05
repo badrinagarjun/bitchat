@@ -59,7 +59,16 @@ export default function NewChatScreen({ navigation }: NewChatScreenProps) {
     setDevices([]);
 
     try {
-      await bluetoothMesh.initialize();
+      const initialized = await bluetoothMesh.initialize();
+      
+      if (!initialized) {
+        Alert.alert(
+          'Bluetooth Not Available',
+          'This feature requires a custom build. Expo Go does not support Bluetooth.\n\nTo test Bluetooth:\n1. Build APK with: eas build --platform android\n2. Install on physical device'
+        );
+        setScanning(false);
+        return;
+      }
       
       const discoveredDevices = await bluetoothMesh.startDiscovery((device) => {
         // Convert BLE Device to our BluetoothDevice type

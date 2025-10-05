@@ -43,19 +43,6 @@
       "eas": {
         "projectId": "d803ddc8-4317-480d-bab4-1e8f06bfd32a"
       }
-    },
-    "plugins": [
-      [
-        "react-native-ble-plx",
-        {
-          "isBackgroundEnabled": true,
-          "modes": [
-            "peripheral",
-            "central"
-          ],
-          "bluetoothAlwaysPermission": "BitChat needs Bluetooth to connect with nearby devices for encrypted messaging."
-        }
-      ]
-    ]
+    }
   }
 }

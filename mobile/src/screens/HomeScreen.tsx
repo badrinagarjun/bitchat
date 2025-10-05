@@ -76,6 +76,14 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         <Text style={styles.headerTitle}>BitChat</Text>
         <Text style={styles.headerSubtitle}>Privacy-First Messaging</Text>
       </View>
+      
+      {/* Info Banner for Expo Go users */}
+      <View style={styles.infoBanner}>
+        <Text style={styles.infoBannerText}>
+          ℹ️ Bluetooth requires custom build. Build APK to test P2P features!
+        </Text>
+      </View>
+      
       <FlatList
         data={chats}
         renderItem={renderChatItem}
@@ -175,6 +183,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  infoBanner: {
+    backgroundColor: '#2d2d2d',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#3a86ff',
+  },
+  infoBannerText: {
+    color: '#3a86ff',
+    fontSize: 12,
+    textAlign: 'center',
   },
   fab: {
     position: 'absolute',

@@ -24,6 +24,12 @@ class BluetoothMeshService {
   // Initialize Bluetooth
   async initialize(): Promise<boolean> {
     try {
+      // Check if BleManager is available (not in Expo Go)
+      if (!this.bleManager) {
+        console.warn('BleManager not available - requires custom build');
+        return false;
+      }
+      
       const state = await this.bleManager.state();
       console.log('Bluetooth state:', state);
 
@@ -35,6 +41,7 @@ class BluetoothMeshService {
       return true;
     } catch (error) {
       console.error('Failed to initialize Bluetooth:', error);
+      console.warn('This likely means you are using Expo Go. Build a custom APK to use Bluetooth.');
       return false;
     }
   }
