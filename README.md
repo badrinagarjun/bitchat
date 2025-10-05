@@ -167,10 +167,8 @@ All data stored locally using AsyncStorage:
 
 ## 📚 Documentation
 
-- **[PURE_MESH_IMPLEMENTATION.md](PURE_MESH_IMPLEMENTATION.md)** - Complete technical guide
-- **[PURE_MESH.md](PURE_MESH.md)** - Architecture overview
-- **[BUILD_APK.md](BUILD_APK.md)** - Building APK guide
-- **[GIT_READY.md](GIT_READY.md)** - Git workflow
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Project structure and design
+- **[docs/PURE_MESH_IMPLEMENTATION.md](docs/PURE_MESH_IMPLEMENTATION.md)** - Complete technical guide
 
 ## 🎯 Why Pure Mesh?
 
